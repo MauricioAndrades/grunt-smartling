@@ -24,14 +24,20 @@ class SmartlingGetTranslations
       fileUri:    @options.resourceId
     }
 
-  getLocaleRequest: (locale, callback) =>
+  getLocaleRequest: (locale, callback, retry) =>
     @grunt.log.writeln "Begin downloading #{locale} from smartling"
 
     _this = @
 
     handleResult = (err, response, body) ->
       if err or response.statusCode isnt 200
-        _this.grunt.log.writeln "Error", body
+        if response.statusCode is 500 and !retry
+          setTimeout(() ->
+            _this.grunt.log.writeln "Retrying download for #{locale}"
+            _this.getLocaleRequest locale, callback, true
+          , 1000)
+        else
+          _this.grunt.fail.warn "Locale: #{locale} - Failed to download Error: #{JSON.parse(body).code}"
       else
         _this.grunt.log.writeln "Downloading #{locale}"
         file = "#{_this.options.resourceId}.#{locale}.json"
